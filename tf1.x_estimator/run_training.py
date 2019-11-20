@@ -62,7 +62,7 @@ if __name__ == '__main__':
     parser.add_argument('--train_dir', type=str)
     parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--num_class', default=10, type=int)
-    parser.add_argument('--learning_rate', default=0.01, type=int)
+    parser.add_argument('--learning_rate', default=0.1, type=int)
     parser.add_argument('--momentum', default=0.9, type=int)
     parser.add_argument('--model_name', default='mobilenet_v2')
     parser.add_argument('--save_checkpoints_step', default=100, type=int)
