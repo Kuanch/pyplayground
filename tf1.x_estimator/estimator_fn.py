@@ -11,7 +11,7 @@ def model_fn(features, labels, mode, params):
         features:
         labels:
         mode:
-        params: [name, num_class, learning_rate]
+        params: [model_name, num_class, learning_rate]
     """
     print('#####################', params, params.num_class)
     network_fn = get_network_fn(params.model_name, params.num_class,
@@ -22,14 +22,26 @@ def model_fn(features, labels, mode, params):
 
     loss = tf.losses.softmax_cross_entropy(one_hot, logits)
 
-    optimizer = tf.train.MomentumOptimizer(params.learning_rate,
+    global_step = tf.train.get_or_create_global_step()
+    learning_rate = tf.train.cosine_decay_restarts(params.learning_rate,
+                                                   global_step,
+                                                   first_decay_steps=500,
+                                                   m_mul=0.9,
+                                                   alpha=0.0001)
+
+    optimizer = tf.train.MomentumOptimizer(learning_rate,
                                            params.momentum)
 
-    global_step = tf.train.get_or_create_global_step()
+    tf.summary.scalar('learning_rate', learning_rate)
+    tf.summary.image('Training data: {}'.format(labels[0]), tf.expand_dims(features[0], axis=0))
+    summary_hook = tf.train.SummarySaverHook(save_steps=1,
+                                             output_dir='./train_dir',
+                                             summary_op=tf.summary.merge_all())
+
     train_op = optimizer.minimize(loss=loss,
                                   global_step=global_step)
-    accuracy, a_update_op = tf.metrics.accuracy(one_hot,
-                                                tf.nn.softmax(logits),
+    accuracy, a_update_op = tf.metrics.accuracy(labels,
+                                                tf.argmax(logits, 1),
                                                 name='accuracy')
     presicion, p_update_op = tf.metrics.precision_at_k(labels,
                                                        logits,
@@ -44,10 +56,6 @@ def model_fn(features, labels, mode, params):
                        'presicion': (presicion, p_update_op),
                        'recall': (recall, r_update_op)}
 
-    eval_logging_hook = tf.train.LoggingTensorHook({'accuracy': accuracy,
-                                                    'precision': presicion,
-                                                    'recall': recall}, every_n_iter=100)
-
     if mode == tf.estimator.ModeKeys.PREDICT:
         spec = tf.estimator.EstimatorSpec(mode,
                                           predictions=end_points['predictions'])
@@ -55,12 +63,12 @@ def model_fn(features, labels, mode, params):
         spec = tf.estimator.EstimatorSpec(tf.estimator.ModeKeys.TRAIN,
                                           loss=loss,
                                           train_op=train_op,
-                                          eval_metric_ops=eval_metric_ops,
-                                          evaluation_hooks=[eval_logging_hook])
+                                          eval_metric_ops=eval_metric_ops)
     elif mode == tf.estimator.ModeKeys.TRAIN:
         spec = tf.estimator.EstimatorSpec(tf.estimator.ModeKeys.TRAIN,
                                           loss=loss,
-                                          train_op=train_op)
+                                          train_op=train_op,
+                                          training_hooks=[summary_hook])
     return spec
 
 
