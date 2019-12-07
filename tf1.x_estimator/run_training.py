@@ -12,7 +12,8 @@ from preprocess.preprocessing_factory import get_preprocessing
 ModelParams = namedtuple('ModelParams', ['model_name',
                                          'num_class',
                                          'learning_rate',
-                                         'momentum'])
+                                         'momentum',
+                                         'summary_variables_and_grads'])
 
 
 def main(args):
@@ -42,7 +43,8 @@ def main(args):
     model_params = ModelParams(model_name=args.model_name,
                                num_class=args.num_class,
                                learning_rate=args.learning_rate,
-                               momentum=args.momentum)
+                               momentum=args.momentum,
+                               summary_variables_and_grads=args.summary_variables_and_grads)
     estimator = create_estimator_fn(run_config, model_params)
 
     tf.estimator.train_and_evaluate(estimator,
@@ -66,6 +68,7 @@ if __name__ == '__main__':
     parser.add_argument('--momentum', default=0.9, type=int)
     parser.add_argument('--model_name', default='mobilenet_v2')
     parser.add_argument('--save_checkpoints_step', default=100, type=int)
+    parser.add_argument('--summary_variables_and_grads', default=False, type=bool)
 
     args = parser.parse_args()
     main(args)

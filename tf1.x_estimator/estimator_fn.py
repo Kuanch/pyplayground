@@ -34,12 +34,7 @@ def model_fn(features, labels, mode, params):
 
     tf.summary.scalar('learning_rate', learning_rate)
     tf.summary.image('Training data: {}'.format(labels[0]), tf.expand_dims(features[0], axis=0))
-    summary_hook = tf.train.SummarySaverHook(save_steps=1,
-                                             output_dir='./train_dir',
-                                             summary_op=tf.summary.merge_all())
 
-    train_op = optimizer.minimize(loss=loss,
-                                  global_step=global_step)
     accuracy, a_update_op = tf.metrics.accuracy(labels,
                                                 tf.argmax(logits, 1),
                                                 name='accuracy')
@@ -57,18 +52,32 @@ def model_fn(features, labels, mode, params):
                        'recall': (recall, r_update_op)}
 
     if mode == tf.estimator.ModeKeys.PREDICT:
-        spec = tf.estimator.EstimatorSpec(mode,
+        spec = tf.estimator.EstimatorSpec(mode=mode,
                                           predictions=end_points['predictions'])
     elif mode == tf.estimator.ModeKeys.EVAL:
-        spec = tf.estimator.EstimatorSpec(tf.estimator.ModeKeys.TRAIN,
+        spec = tf.estimator.EstimatorSpec(mode=mode,
                                           loss=loss,
-                                          train_op=train_op,
                                           eval_metric_ops=eval_metric_ops)
     elif mode == tf.estimator.ModeKeys.TRAIN:
-        spec = tf.estimator.EstimatorSpec(tf.estimator.ModeKeys.TRAIN,
-                                          loss=loss,
-                                          train_op=train_op,
-                                          training_hooks=[summary_hook])
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        with tf.control_dependencies(update_ops):
+            grads = optimizer.compute_gradients(loss=loss)
+            train_op = optimizer.apply_gradients(grads, global_step=global_step)
+
+            if params.summary_variables_and_grads:
+                for var in tf.trainable_variables():
+                    tf.summary.histogram(var.op.name, var)
+                for grad, var in grads:
+                    if grad is not None:
+                        tf.summary.histogram(var.op.name + '/gradients', grad)
+            summary_hook = tf.train.SummarySaverHook(save_steps=1,
+                                                     output_dir='./train_dir',
+                                                     summary_op=tf.summary.merge_all())
+            spec = tf.estimator.EstimatorSpec(mode=mode,
+                                              loss=loss,
+                                              train_op=train_op,
+                                              training_hooks=[summary_hook])
+
     return spec
 
 
