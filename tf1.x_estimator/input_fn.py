@@ -24,6 +24,6 @@ def create_train_and_eval_specs(train_in_fn,
     train_spec = tf.estimator.TrainSpec(input_fn=train_in_fn,
                                         max_steps=max_steps)
 
-    eval_spec = tf.estimator.EvalSpec(input_fn=eval_in_fn, steps=10, throttle_secs=600)
+    eval_spec = tf.estimator.EvalSpec(input_fn=eval_in_fn, steps=10, throttle_secs=60)
 
     return train_spec, eval_spec
