@@ -24,37 +24,26 @@ def model_fn(features, labels, mode, params):
     loss = tf.losses.softmax_cross_entropy(one_hot, logits)
 
     global_step = tf.train.get_or_create_global_step()
-    learning_rate = tf.train.cosine_decay_restarts(params.learning_rate,
-                                                   global_step,
-                                                   first_decay_steps=500,
-                                                   m_mul=0.9,
-                                                   alpha=0.0001)
+    learning_rate = tf.train.cosine_decay(params.learning_rate,
+                                          global_step,
+                                          decay_steps=params.cos_decay_steps,
+                                          alpha=0.0001)
 
     optimizer = tf.train.MomentumOptimizer(learning_rate,
                                            params.momentum)
 
-    accuracy, a_update_op = tf.metrics.accuracy(labels,
-                                                tf.argmax(logits, 1),
-                                                name='accuracy')
-
-    tf.summary.scalar('learning_rate', learning_rate)
-    tf.summary.image('Training data', tf.expand_dims(features[0], axis=0))
+    accuracy, accuracy_update_op = tf.metrics.accuracy(labels,
+                                                       tf.argmax(logits, 1),
+                                                       name='accuracy')
+    metric_ops = eval_metrics(predictions, one_hot)
 
     if mode == tf.estimator.ModeKeys.PREDICT:
         spec = tf.estimator.EstimatorSpec(mode=mode,
                                           predictions=predictions)
     elif mode == tf.estimator.ModeKeys.EVAL:
-        metric_ops = eval_metrics(predictions, one_hot, is_training=False)
-        eval_metric_ops = {'overall/precision': metric_ops['overall/precision'],
-                           'overall/recall': metric_ops['overall/recall'],
-                           'class/precision': metric_ops['class/precision'],
-                           'class/recall': metric_ops['class/recall'],
-                           'accuracy': (accuracy, a_update_op)}
-        tf.summary.scalar('presicion', eval_metric_ops['overall/precision'])
-        tf.summary.scalar('recall', eval_metric_ops['overall/recall'])
-        tf.summary.scalar('class/presicion', eval_metric_ops['class/precision'])
-        tf.summary.scalar('class/recall', eval_metric_ops['class/recall'])
-        tf.summary.scalar('accuracy', eval_metric_ops['accuracy'])
+        eval_metric_ops = {'eval/precision': metric_ops['overall/precision'],
+                           'eval/recall': metric_ops['overall/recall'],
+                           'accuracy': (accuracy, accuracy_update_op)}
 
         spec = tf.estimator.EstimatorSpec(mode=mode,
                                           loss=loss,
@@ -73,9 +62,21 @@ def model_fn(features, labels, mode, params):
                     if grad is not None:
                         tf.summary.histogram(var.op.name + '/gradients', grad)
 
+            tf.summary.scalar('accuracy', accuracy_update_op)
+            tf.summary.scalar('train/precision', metric_ops['overall/precision'][1])
+            tf.summary.scalar('train/recall', metric_ops['overall/recall'][1])
+            tf.summary.scalar('learning_rate', learning_rate)
+            tf.summary.scalar('loss', loss)
+            tf.summary.image('Training data', tf.expand_dims(features[0], axis=0))
+
+            summary_hook = tf.train.SummarySaverHook(save_steps=params.summary_save_step,
+                                                     output_dir=params.output_dir,
+                                                     scaffold=tf.train.Scaffold(summary_op=tf.summary.merge_all()))
+
             spec = tf.estimator.EstimatorSpec(mode=mode,
                                               loss=loss,
-                                              train_op=train_op)
+                                              train_op=train_op,
+                                              training_hooks=[summary_hook])
 
     return spec
 
