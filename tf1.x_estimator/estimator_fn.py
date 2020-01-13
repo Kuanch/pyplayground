@@ -2,6 +2,8 @@ import tensorflow as tf
 
 from nets.nets_factory import get_network_fn
 from utils.eval_metrics_utils import eval_metrics
+# from utils.optimizer_utils import get_optimizer
+# from utils.learning_rate_utils import get_lr_strategy
 
 
 def model_fn(features, labels, mode, params):
@@ -19,9 +21,10 @@ def model_fn(features, labels, mode, params):
 
     logits, end_points = network_fn(features)
     predictions = end_points['predictions']
-    one_hot = tf.one_hot(labels, depth=params.num_class)
+    one_hot_pred = tf.one_hot(tf.arg_max(predictions, dimension=1), tf.shape(predictions)[1])
+    one_hot_label = tf.one_hot(labels, depth=params.num_class)
 
-    loss = tf.losses.softmax_cross_entropy(one_hot, logits)
+    loss = tf.losses.softmax_cross_entropy(one_hot_label, logits)
 
     global_step = tf.train.get_or_create_global_step()
     learning_rate = tf.train.cosine_decay(params.learning_rate,
@@ -35,7 +38,7 @@ def model_fn(features, labels, mode, params):
     accuracy, accuracy_update_op = tf.metrics.accuracy(labels,
                                                        tf.argmax(logits, 1),
                                                        name='accuracy')
-    metric_ops = eval_metrics(predictions, one_hot)
+    metric_ops = eval_metrics(one_hot_pred, one_hot_label)
 
     if mode == tf.estimator.ModeKeys.PREDICT:
         spec = tf.estimator.EstimatorSpec(mode=mode,
