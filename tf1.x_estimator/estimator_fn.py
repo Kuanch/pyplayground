@@ -25,10 +25,10 @@ def model_fn(features, labels, mode, params):
     one_hot_pred = tf.one_hot(tf.arg_max(predictions, dimension=1), tf.shape(predictions)[1])
     one_hot_label = tf.one_hot(labels, depth=params.num_class)
 
-    loss = tf.losses.softmax_cross_entropy(one_hot_label, logits)
+    loss = tf.losses.softmax_cross_entropy(one_hot_label, logits, label_smoothing=params.label_smoothing)
 
     global_step = tf.train.get_or_create_global_step()
-    learning_rate = cosine_decay_warmup(0.1, global_step, 0.01, 500, params.decay_steps)
+    learning_rate = cosine_decay_warmup(0.1, global_step, 0.01, 4000, params.decay_steps)
 
     optimizer = tf.train.MomentumOptimizer(learning_rate,
                                            params.momentum)
