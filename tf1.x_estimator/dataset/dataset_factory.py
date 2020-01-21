@@ -18,7 +18,8 @@ def dataset_fn(tfrecord_path,
                batch_size,
                preprocess_fn,
                image_size,
-               is_training):
+               is_training,
+               enable_rand_augment):
     dataset_list = tf.data.Dataset.list_files(tfrecord_path + '/*')
 
     dataset = dataset_list.interleave(tf.data.TFRecordDataset,
@@ -32,7 +33,8 @@ def dataset_fn(tfrecord_path,
                                         label,
                                         image_size,
                                         image_size,
-                                        is_training=is_training),
+                                        is_training=is_training,
+                                        enable_rand_augment=enable_rand_augment),
                           num_parallel_calls=8)
 
     dataset = dataset.shuffle(buffer_size=8)
@@ -50,11 +52,13 @@ def get_dataset_fn(tfrecord_path,
                    batch_size,
                    preprocess_fn,
                    image_size,
-                   is_training):
+                   is_training,
+                   enable_rand_augment):
     def _get_dataset_fn():
         return dataset_fn(tfrecord_path,
                           batch_size,
                           preprocess_fn,
                           image_size,
-                          is_training)
+                          is_training,
+                          enable_rand_augment)
     return _get_dataset_fn

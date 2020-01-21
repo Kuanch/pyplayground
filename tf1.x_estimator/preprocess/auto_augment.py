@@ -684,11 +684,6 @@ def distort_image_with_randaugment(image, num_layers, magnitude):
   Returns:
     The augmented version of `image`.
   """
-  '''
-  image = tf.expand_dims(image, 0)
-  image = tf.image.resize_bilinear(image, [224, 224], align_corners=False)
-  image = tf.squeeze(image)
-  '''
   image = tf.cast(image, dtype=tf.uint8)
   replace_value = [128] * 3
   tf.logging.info('Using RandAug.')

@@ -19,6 +19,8 @@ ModelParams = namedtuple('ModelParams', ['model_name',
                                          'output_dir',
                                          'decay_steps',
                                          'decay_rate',
+                                         'warmup_base_lr',
+                                         'warmup_step',
                                          'label_smoothing'])
 
 
@@ -28,14 +30,15 @@ def main(args):
                                      args.batch_size,
                                      args.model_name,
                                      image_size=args.image_size,
-                                     preprocess_fn=get_preprocessing,
+                                     get_preprocess_fn=get_preprocessing,
                                      enable_rand_augment=args.enable_rand_augment)
     eval_input_fn = create_input_fn(args.eval_tfrecord_path,
                                     batch_size=args.eval_batch_size,
                                     image_size=args.image_size,
                                     preprocess_name=args.model_name,
-                                    preprocess_fn=get_preprocessing,
-                                    is_training=False)
+                                    get_preprocess_fn=get_preprocessing,
+                                    is_training=False,
+                                    enable_rand_augment=args.enable_rand_augment)
 
     train_spec, eval_spec = create_train_and_eval_specs(train_input_fn,
                                                         eval_input_fn,
@@ -44,7 +47,7 @@ def main(args):
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
     if args.enable_xla:
-        os.environ['TF_XLA_FLAGS']='--tf_xla_cpu_global_jit'
+        os.environ['TF_XLA_FLAGS']='--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit'
         config.graph_options.optimizer_options.global_jit_level = tf.OptimizerOptions.ON_1
     run_config = tf.estimator.RunConfig(args.train_dir,
                                         save_checkpoints_steps=args.save_checkpoints_step,
@@ -59,6 +62,8 @@ def main(args):
                                output_dir=args.train_dir,
                                decay_steps=args.train_step,
                                decay_rate=0.1,
+                               warmup_base_lr=args.warmup_base_lr,
+                               warmup_step=args.warmup_step,
                                label_smoothing=args.label_smoothing)
     estimator = create_estimator_fn(run_config, model_params)
 
@@ -83,6 +88,8 @@ if __name__ == '__main__':
     parser.add_argument('--num_class', default=10, type=int)
     parser.add_argument('--learning_rate', default=0.1, type=float)
     parser.add_argument('--momentum', default=0.9, type=float)
+    parser.add_argument('--warmup_base_lr', default=0.01, type=float)
+    parser.add_argument('--warmup_step', default=1000, type=int)
     parser.add_argument('--label_smoothing', default=0, type=float)
     parser.add_argument('--enable_rand_augment', dest='enable_rand_augment', action='store_true')
     parser.add_argument('--model_name', default='mobilenet_v2', type=str)
