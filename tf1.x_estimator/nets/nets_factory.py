@@ -27,7 +27,7 @@ from nets import mobilenet_v1
 from nets import resnet_v1
 from nets import resnet_v2
 from nets.mobilenet import mobilenet_v2
-
+from nets.efficientnet import efficientnet_builder
 
 slim = tf.contrib.slim
 
@@ -54,6 +54,16 @@ networks_map = {'vgg_a': vgg.vgg_a,
                 'mobilenet_v2': mobilenet_v2.mobilenet,
                 'mobilenet_v2_140': mobilenet_v2.mobilenet_v2_140,
                 'mobilenet_v2_035': mobilenet_v2.mobilenet_v2_035,
+                'efficientnet-b0': efficientnet_builder.build_model,
+                'efficientnet-b1': efficientnet_builder.build_model,
+                'efficientnet-b2': efficientnet_builder.build_model,
+                'efficientnet-b3': efficientnet_builder.build_model,
+                'efficientnet-b4': efficientnet_builder.build_model,
+                'efficientnet-b5': efficientnet_builder.build_model,
+                'efficientnet-b6': efficientnet_builder.build_model,
+                'efficientnet-b7': efficientnet_builder.build_model,
+                'efficientnet-b8': efficientnet_builder.build_model,
+                'efficientnet-l2': efficientnet_builder.build_model
                 }
 
 arg_scopes_map = {'vgg_a': vgg.vgg_arg_scope,
@@ -114,11 +124,14 @@ def get_network_fn(name, num_classes, weight_decay=0.0, is_training=False):
     Raises:
       ValueError: If network `name` is not recognized.
     """
+    # Retrieve efficientnet build fn, not assign model yet.
     if name not in networks_map:
         raise ValueError('Name of network unknown %s' % name)
     func = networks_map[name]
     @functools.wraps(func)
     def network_fn(images, **kwargs):
+        if name.startswith('efficientnet'):
+            return func(images, num_classes=num_classes, model_name=name, training=is_training, **kwargs)
         arg_scope = arg_scopes_map[name](weight_decay=weight_decay)
         with slim.arg_scope(arg_scope):
             return func(images, num_classes=num_classes, is_training=is_training,
