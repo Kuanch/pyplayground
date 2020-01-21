@@ -28,7 +28,7 @@ def model_fn(features, labels, mode, params):
     loss = tf.losses.softmax_cross_entropy(one_hot_label, logits, label_smoothing=params.label_smoothing)
 
     global_step = tf.train.get_or_create_global_step()
-    learning_rate = cosine_decay_warmup(0.1, global_step, 0.01, 4000, params.decay_steps)
+    learning_rate = cosine_decay_warmup(params.learning_rate, global_step, params.warmup_base_lr, params.warmup_step, params.decay_steps)
 
     optimizer = tf.train.MomentumOptimizer(learning_rate,
                                            params.momentum)
