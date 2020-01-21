@@ -21,6 +21,7 @@ from __future__ import print_function
 from preprocess import inception_preprocessing
 from preprocess import vgg_preprocessing
 from preprocess import eff_preprocessing
+from preprocess import auto_augment
 
 
 def get_preprocessing(name):
@@ -67,19 +68,36 @@ def get_preprocessing(name):
         'vgg_a': vgg_preprocessing,
         'vgg_16': vgg_preprocessing,
         'vgg_19': vgg_preprocessing,
-        'efficientnet-b0': eff_preprocessing
+        'efficientnet-b0': eff_preprocessing,
+        'efficientnet-b1': eff_preprocessing,
+        'efficientnet-b2': eff_preprocessing,
+        'efficientnet-b3': eff_preprocessing,
+        'efficientnet-b4': eff_preprocessing,
+        'efficientnet-b5': eff_preprocessing,
+        'efficientnet-b6': eff_preprocessing,
+        'efficientnet-b7': eff_preprocessing,
+        'efficientnet-b8': eff_preprocessing,
+        'efficientnet-l2': eff_preprocessing,
     }
 
     if name not in preprocessing_fn_map:
         raise ValueError('Preprocessing name [%s] was not recognized' % name)
 
-    def preprocessing_fn(image, label, output_height, output_width, is_training, **kwargs):
-        image, label = preprocessing_fn_map[name].preprocess_image(image,
-                                                                   label,
-                                                                   output_height,
-                                                                   output_width,
-                                                                   is_training)
-
+    def preprocessing_fn(image, label, output_height, output_width, is_training, enable_rand_augment, **kwargs):
+        if enable_rand_augment:
+            image = tf.expand_dims(image, 0)
+            image = tf.image.resize_bilinear(image, [output_height, output_width], align_corners=False)
+            image = tf.squeeze(image)
+            if is_training:
+                image = auto_augment.distort_image_with_randaugment(image, 2, 5)
+        else:
+            image, label = preprocessing_fn_map[name].preprocess_image(
+                image,
+                label,
+                output_height,
+                output_width,
+                is_training=is_training,
+                **kwargs)
         return image, label
 
     return preprocessing_fn
