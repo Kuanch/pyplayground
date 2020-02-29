@@ -13,11 +13,11 @@ import cv2
 class VideoCaptureThreading(object):
     def __init__(self, device):
         self._cam = cv2.VideoCapture(device)
-        self._queue = queue.Queue()
-        self._stop = True
+        self._queue = queue.Queue(10)
+        self._not_stop = True
 
     def _get_frame(self):
-        while not self._stop:
+        while self._not_stop:
             frame = self._cam.read()
             self._queue.put(frame, block=False)
 
@@ -26,5 +26,8 @@ class VideoCaptureThreading(object):
     def start(self):
         threading.Thread(target=self._get_frame, daemon=True, args=()).start()
 
+    def stop(self):
+        self._not_stop = False
+
     def read(self):
-        return self._queue.get(block=False)
+        return self._queue.get(block=True)
