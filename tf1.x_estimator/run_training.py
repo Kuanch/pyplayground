@@ -1,3 +1,4 @@
+import os
 import argparse
 from collections import namedtuple
 
@@ -16,7 +17,9 @@ ModelParams = namedtuple('ModelParams', ['model_name',
                                          'summary_variables_and_grads',
                                          'summary_save_step',
                                          'output_dir',
-                                         'cos_decay_steps'])
+                                         'decay_steps',
+                                         'decay_rate',
+                                         'label_smoothing'])
 
 
 def main(args):
@@ -25,7 +28,8 @@ def main(args):
                                      args.batch_size,
                                      args.model_name,
                                      image_size=args.image_size,
-                                     preprocess_fn=get_preprocessing)
+                                     preprocess_fn=get_preprocessing,
+                                     enable_rand_augment=args.enable_rand_augment)
     eval_input_fn = create_input_fn(args.eval_tfrecord_path,
                                     batch_size=args.eval_batch_size,
                                     image_size=args.image_size,
@@ -39,6 +43,9 @@ def main(args):
 
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
+    if args.enable_xla:
+        os.environ['TF_XLA_FLAGS']='--tf_xla_cpu_global_jit'
+        config.graph_options.optimizer_options.global_jit_level = tf.OptimizerOptions.ON_1
     run_config = tf.estimator.RunConfig(args.train_dir,
                                         save_checkpoints_steps=args.save_checkpoints_step,
                                         keep_checkpoint_max=args.keep_checkpoint_max,
@@ -50,7 +57,9 @@ def main(args):
                                summary_variables_and_grads=args.summary_variables_and_grads,
                                summary_save_step=args.summary_save_step,
                                output_dir=args.train_dir,
-                               cos_decay_steps=args.train_step)
+                               decay_steps=args.train_step,
+                               decay_rate=0.1,
+                               label_smoothing=args.label_smoothing)
     estimator = create_estimator_fn(run_config, model_params)
 
     tf.estimator.train_and_evaluate(estimator,
@@ -72,12 +81,20 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--eval_batch_size', default=32, type=int)
     parser.add_argument('--num_class', default=10, type=int)
-    parser.add_argument('--learning_rate', default=0.1, type=int)
-    parser.add_argument('--momentum', default=0.9, type=int)
-    parser.add_argument('--model_name', default='mobilenet_v2')
+    parser.add_argument('--learning_rate', default=0.1, type=float)
+    parser.add_argument('--momentum', default=0.9, type=float)
+    parser.add_argument('--label_smoothing', default=0, type=float)
+    parser.add_argument('--enable_rand_augment', dest='enable_rand_augment', action='store_true')
+    parser.add_argument('--model_name', default='mobilenet_v2', type=str)
     parser.add_argument('--save_checkpoints_step', default=100, type=int)
     parser.add_argument('--summary_save_step', default=10, type=int)
-    parser.add_argument('--summary_variables_and_grads', default=False, type=bool)
+    parser.add_argument('--summary_variables_and_grads', dest='summary_variables_and_grads', action='store_true')
+    parser.add_argument('--enable_xla', dest='enable_xla', action='store_true')
+    parser.add_argument('--enable_mixed_precision', dest='enable_mixed_precision', action='store_true')
+
 
     args = parser.parse_args()
+    os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu_id)
+    if args.enable_mixed_precision:
+        os.environ['TF_ENABLE_AUTO_MIXED_PRECISION'] = '1'
     main(args)
