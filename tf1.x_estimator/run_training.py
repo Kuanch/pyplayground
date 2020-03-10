@@ -27,14 +27,13 @@ def main(args):
     train_input_fn = create_input_fn(args.tfrecord_path,
                                      args.batch_size,
                                      args.model_name,
-                                     image_size=args.image_size,
-                                     preprocess_fn=get_preprocessing,
-                                     enable_rand_augment=args.enable_rand_augment)
+                                     get_preprocessing,
+                                     image_size=args.image_size)
     eval_input_fn = create_input_fn(args.eval_tfrecord_path,
                                     batch_size=args.eval_batch_size,
                                     image_size=args.image_size,
                                     preprocess_name=args.model_name,
-                                    preprocess_fn=get_preprocessing,
+                                    get_preprocess_fn=get_preprocessing,
                                     is_training=False)
 
     train_spec, eval_spec = create_train_and_eval_specs(train_input_fn,
