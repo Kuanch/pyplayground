@@ -187,7 +187,7 @@ def preprocess_for_train(image, use_bfloat16, image_height=IMAGE_SIZE,
       A preprocessed image `Tensor`.
     """
     image = _flip(image)
-    image = tf.reshape(image, [image_height, image_width, 3])
+    image = tf.image.resize_images(image, [image_height, image_width], tf.image.ResizeMethod.BILINEAR)
 
     image = tf.image.convert_image_dtype(
         image, dtype=tf.bfloat16 if use_bfloat16 else tf.float32)
@@ -228,7 +228,7 @@ def preprocess_for_eval(image, use_bfloat16, image_height=IMAGE_SIZE, image_widt
     Returns:
       A preprocessed image `Tensor`.
     """
-    image = tf.reshape(image, [image_height, image_width, 3])
+    image = tf.image.resize_images(image, [image_height, image_width], tf.image.ResizeMethod.BILINEAR)
     image = tf.image.convert_image_dtype(
         image, dtype=tf.bfloat16 if use_bfloat16 else tf.float32)
     return image
