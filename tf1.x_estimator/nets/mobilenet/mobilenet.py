@@ -388,9 +388,9 @@ def mobilenet(inputs,
       logits = tf.squeeze(logits, [1, 2])
 
       logits = tf.identity(logits, name='output')
-    end_points['Logits'] = logits
+    end_points['logits'] = logits
     if prediction_fn:
-      end_points['Predictions'] = prediction_fn(logits, 'Predictions')
+      end_points['predictions'] = prediction_fn(logits, 'predictions')
   return logits, end_points
 
 
