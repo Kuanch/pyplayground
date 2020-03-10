@@ -20,9 +20,8 @@ from __future__ import print_function
 
 from preprocess import inception_preprocessing
 from preprocess import vgg_preprocessing
-from preprocess import auto_augment
+from preprocess import eff_preprocessing
 
-import tensorflow as tf
 
 def get_preprocessing(name):
     """Returns preprocessing_fn(image, height, width, **kwargs).
@@ -68,28 +67,19 @@ def get_preprocessing(name):
         'vgg_a': vgg_preprocessing,
         'vgg_16': vgg_preprocessing,
         'vgg_19': vgg_preprocessing,
+        'efficientnet-b0': eff_preprocessing
     }
 
     if name not in preprocessing_fn_map:
         raise ValueError('Preprocessing name [%s] was not recognized' % name)
 
-    def preprocessing_fn(image, label, output_height, output_width, is_training, enable_rand_augment, **kwargs):
-        if enable_rand_augment:
-            image = auto_augment.distort_image_with_randaugment(image, 2, 5)
-            image = tf.expand_dims(image, 0)
-            image = tf.image.resize_bilinear(image, [224, 224], align_corners=False)
-            image = tf.squeeze(image)
-
-        else:
-            image, label = preprocessing_fn_map[name].preprocess_image(
-                image,
-                label,
-                output_height,
-                output_width,
-                is_training,
-                **kwargs)
+    def preprocessing_fn(image, label, output_height, output_width, is_training, **kwargs):
+        image, label = preprocessing_fn_map[name].preprocess_image(image,
+                                                                   label,
+                                                                   output_height,
+                                                                   output_width,
+                                                                   is_training)
 
         return image, label
-
 
     return preprocessing_fn

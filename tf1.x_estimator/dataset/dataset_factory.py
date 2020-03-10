@@ -32,7 +32,7 @@ def dataset_fn(tfrecord_path,
                                         label,
                                         image_size,
                                         image_size,
-                                        is_training=is_training),
+                                        is_training),
                           num_parallel_calls=8)
 
     dataset = dataset.shuffle(buffer_size=8)
