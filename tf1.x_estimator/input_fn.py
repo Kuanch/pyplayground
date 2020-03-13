@@ -6,17 +6,15 @@ from dataset.dataset_factory import get_dataset_fn
 def create_input_fn(tfrecord_path,
                     batch_size,
                     preprocess_name,
-                    preprocess_fn,
+                    get_preprocess_fn,
                     image_size=224,
-                    is_training=True,
-                    enable_rand_augment=False):
-    preprocess_fn = preprocess_fn(preprocess_name)
+                    is_training=True):
+    preprocess_fn = get_preprocess_fn(preprocess_name)
     dataset_fn = get_dataset_fn(tfrecord_path,
                                 batch_size,
                                 preprocess_fn,
                                 image_size,
-                                is_training,
-                                enable_rand_augment)
+                                is_training)
     return dataset_fn
 
 
