@@ -1,5 +1,5 @@
 # TF1.x Estimator
-Tensorflow Estimator Training Based on TF1.13
+Tensorflow Estimator Training Based on TF1.14
 
 ## Requirements
 Tensorflow 1.14
@@ -23,6 +23,9 @@ python3 run_training.py
 
 There are several training options to setup:
 
+* enable_rand_augment  
+Enable RandAugment for data augmentation.
+
 * enable_xla  
 Enable Accelerated Linear Algebra(XLA) compiler for speeding up training.
 	
@@ -32,3 +35,5 @@ Automatic porting the model to use the half-precision data type for speeding up 
 ## Future works
 
 * [ ] Metric Learning
+* [ ] Alternative Loss Functions
+* [ ] Alternative Optimizations
