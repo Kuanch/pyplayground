@@ -14,27 +14,29 @@ class MotionDetector(object):
         self.avg_frame = None
 
     def _detect(self, image):
-        image = cv2.blur(image, (3, 3))
         diff = cv2.absdiff(self.avg_frame, image)
-        grey = np.sum(diff, axis=2)
-        ret, thresh = cv2.threshold(grey, 30, 1, cv2.THRESH_BINARY)
-        if np.sum(np.sum(thresh)) > 10:
+        _, thresh = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)
+        print(np.sum(np.sum(thresh)))
+        if np.sum(np.sum(thresh)) > 100:
             return True
         return False
 
     def detect(self, image):
         motive = False
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY).astype('float')
         if self.avg_frame is None:
-            self.avg_frame = cv2.blur(image, (3, 3))
+            self.avg_frame = cv2.blur(gray, (21, 21))
 
         else:
-            motive = self._detect(image)
+            blur_image = cv2.blur(gray, (21, 21))
+            cv2.accumulateWeighted(blur_image, self.avg_frame, 0.5)
+            motive = self._detect(blur_image)
 
         return motive
 
 
 class ImageProcessor(mp.Process):
-    def __init__(self, queue, finished, motion_analysis=True):
+    def __init__(self, queue, finished, motion_analysis):
         super(ImageProcessor, self).__init__()
         self.finished = finished
         self.queue = queue
@@ -45,22 +47,25 @@ class ImageProcessor(mp.Process):
         self.start()
 
     def _process(self, image):
-        pass
 
-    def process(self):
-        try:
-            stream = io.BytesIO(self.queue.get(False))
-        except Empty:
-            pass
-        else:
-            image = np.frombuffer(stream, dtype=np.uint8)
-            if self.motion_detector is not None:
-                self.motion_detector.detect(image, self.avg_frame)
+        return image
+
+    def process(self, image):
             self._process(image)
-            stream.seek(0)
+            if self.motion_detector is not None:
+                motive = self.motion_detector.detect(image)
+                if motive:
+                    print('Motion Detected!')
 
     def run(self):
-        pass
+        while not self.finished.set():
+            try:
+                bytes_image = self.queue.get(False)
+            except Empty:
+                continue
+            else:
+                image = cv2.imdecode(np.frombuffer(bytes_image, dtype=np.uint8), -1)
+                self.process(image)
 
 
 class QueueOutput(object):
@@ -68,7 +73,7 @@ class QueueOutput(object):
         self.queue = queue
         self.finished = finished
         self.stream = io.BytesIO()
-        self.process_pool = [ImageProcessor(queue, finished, motion_analysis)
+        self.process_pool = [ImageProcessor(self.queue, self.finished, motion_analysis)
                              for i in range(num_process)]
 
     def write(self, buf):
@@ -80,51 +85,48 @@ class QueueOutput(object):
                 self.queue.put(self.stream.read(size))
                 self.stream.seek(0)
         self.stream.write(buf)
-        print('write into queue')
+
+    def stop_processor(self):
+        for p in self.process_pool:
+            p.terminate()
+            p.join()
+
+    def save_image(self):
+        bytes_image = self.queue.get(False)
+        arr_image = np.frombuffer(bytes_image, np.uint8)
+        cv2.imwrite('test_image.png', arr_image)
 
     def flush(self):
-        print('end of recording')
         self.queue.close()
         self.queue.join_thread()
         self.finished.set()
+        self.stop_processor()
+        print('end of recording')
 
 
 class Capture(object):
-    def __init__(self, ):
-        pass
+    def __init__(self, queue, finished, minutes, num_postprocess_process=0):
+        self.queue = queue
+        self.finished = finished
+        self.minutes = minutes
 
-    def do_capture(queue, finished, minutes):
-        with picamera.PiCamera(resolution='VGA', framerate=30) as camera:
-            output = QueueOutput(queue, finished, args.num_postprocess_process)
-            camera.start_recording(output, format='mjpeg')
-            camera.wait_recording(60 * minutes)
-            camera.stop_recording()
+        self.camera = picamera.PiCamera(resolution='VGA', framerate=30)
+        self.output = QueueOutput(queue, finished, num_postprocess_process)
+
+    def run(self):
+        self.do_capture()
+
+    def do_capture(self):
+        self.camera.start_recording(self.output, format='mjpeg')
+        self.camera.wait_recording(60 * self.minutes)
+        self.camera.stop_recording()
 
 
 def main(args):
     queue = mp.Queue()
     finished = mp.Event()
-    capture = Capture()
-    processor = ImageProcessor()
-    capture_proc = mp.Process(target=capture.do_capture, args=(queue, finished, args.minutes))
-    processing_procs = None
-
-    # multi-process for postprocessing
-    if args.num_postprocess_process:
-        processing_procs = [mp.Process(target=processor.do_processing, args=(queue, finished))
-                            for i in range(args.num_postprocess_process)]
-        for proc in processing_procs:
-            proc.start()
-
-    # main process
-    capture_proc.start()
-
-    # if postprocessing processors exist
-    if processing_procs is not None:
-        for proc in processing_procs:
-            proc.join()
-
-    capture_proc.join()
+    capture = Capture(queue, finished, args.minutes, args.num_postprocess_process)
+    capture.do_capture()
 
 
 if __name__ == '__main__':
