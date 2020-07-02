@@ -1,3 +1,5 @@
+import argparse
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -9,14 +11,14 @@ from dataset import dataloader
 from utils.utils import plot_classes_preds
 
 
-def train():
-    model = network.get_network('resnet18', num_classes=10).cuda()
-    dataset = dataloader.TorchLoader('CIFAR10', train_batch_size=64, test_batch_size=128)
+def train(args):
+    model = network.get_network(args.model_name, num_classes=10).cuda()
+    dataset = dataloader.TorchLoader(args.dataset_name, train_batch_size=args.train_batch_size, test_batch_size=args.test_batch_size)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
     writer = SummaryWriter()
 
-    for epoch in range(10):
+    for epoch in range(args.epoch):
         running_loss = 0.
         for i in range(len(dataset.train_loader)):
             inputs, labels = dataset.read_train()
@@ -68,5 +70,13 @@ def train():
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model_name', default='resnet18')
+    parser.add_argument('--dataset_name', default='CIFAR10')
+    parser.add_argument('--dataset_path', default=None)
+    parser.add_argument('--epoch', type=int, default=1)
+    parser.add_argument('--train_batch_size', type=int, default=32)
+    parser.add_argument('--test_batch_size', type=int, default=128)
+    args = parser.parse_args()
     torch.backends.cudnn.benchmark = True
-    train()
+    train(args)
