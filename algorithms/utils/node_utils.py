@@ -24,6 +24,8 @@ class ListNode:
 
 
 def list_to_link(l):
+    if len(l) == 0:
+        return ListNode(None)
     head = None
     pre = None
     for i in l:
